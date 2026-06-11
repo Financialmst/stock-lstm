@@ -1,79 +1,178 @@
-# 📈 Stock Price Predictor & Investment Simulator
+# AI Financial Intelligence Platform
 
-An interactive Streamlit web app that predicts next-day stock prices using a deep learning model and simulates investment outcomes. Built with a Bidirectional LSTM trained on technical indicators and historical price data.
+## Overview
 
-![image](https://github.com/user-attachments/assets/c9f79b7e-3687-4ce6-a5d9-0119cea27007)
-![image](https://github.com/user-attachments/assets/46e97997-07b7-43dd-ac0a-c08a792f1875)
+AI Financial Intelligence Platform is a multi-agent system designed to analyze global financial markets and provide actionable investment insights for everyday investors.
 
+The platform combines machine learning, technical analysis, sentiment analysis, risk assessment, market regime detection, portfolio intelligence, and AI reasoning into a single decision-support system.
 
----
-
-## 🚀 Key Features
-
-- **Real-time Data** - Fetches live market data from Yahoo Finance (`yfinance`)
-- **Technical Analysis** - Calculates 13+ indicators including:
-  - Moving Averages (SMA, EMA)
-  - Momentum Indicators (RSI, MACD)
-  - Volatility Measures (Bollinger Bands)
-- **AI Prediction** - Bidirectional LSTM model trained on 60-day windows
-- **Investment Simulator** - Calculates potential profit/loss scenarios
-- **Trading Strategy** - Provides Buy/Hold/Sell recommendations
-- **Interactive Charts** - Visualizes historical prices and predictions
+Instead of presenting raw indicators, the platform translates complex market data into simple, human-friendly insights.
 
 ---
 
-## 🧠 Model Architecture
+## Key Features
 
-- **Model Type**: 2-layer Bidirectional LSTM
-- **Input**: 60 days × 13 technical features
-- **Output**: Next day's predicted price
-- **Training**:
-  ```python
-  model.fit(X_train, y_train, epochs=20, batch_size=32)
-  stock-lstm-app/
-  
-# 📦 Project Structure
+### Price Prediction
 
-```
-stock-lstm-app/
-├── app.py
-├── requirements.txt
-└── model/
-    ├── model.h5
-    ├── feature_scaler.save
-    └── target_scaler.save
-```
+* LSTM-based deep learning model
+* Global multi-market training dataset
+* Supports stocks, indices, commodities, and crypto
 
+### Sentiment Intelligence
 
-## 🔧 Installation & Usage
+* Financial news sentiment analysis
+* Reddit sentiment analysis
+* FinBERT-powered classification
 
-```
-# Clone repository
-git clone https://github.com/yourusername/stock-lstm-app.git
-cd stock-lstm-app
+### Technical Analysis
 
-# Install dependencies
-pip install -r requirements.txt
+* RSI
+* MACD
+* Moving Averages
+* Momentum Indicators
+* Bollinger Metrics
 
-# Launch application
-streamlit run app.py
-```
-## ✨ Credits
+### Risk Intelligence
 
-**Developer**: Mourakshi Thakuria  
-**Built with**:
-- TensorFlow
-- Streamlit
-- yfinance  
-**Visualization**: Plotly
+* Volatility assessment
+* Risk classification
+* Confidence scoring
+
+### Market Regime Detection
+
+* Trending Bull Market
+* Trending Bear Market
+* Volatile Bull Market
+* Volatile Bear Market
+* Sideways Markets
+
+### Multi-Timeframe Analysis
+
+* Short-Term Outlook
+* Medium-Term Outlook
+* Long-Term Outlook
+
+### Probability Engine
+
+* Bullish Probability
+* Bearish Probability
+* Market Direction
+* Confidence Estimation
+
+### Portfolio Intelligence
+
+* Diversification Analysis
+* Portfolio Risk Assessment
+* Asset Concentration Detection
+* Portfolio Health Evaluation
+
+### AI Reasoning
+
+* Converts complex financial signals into simple explanations
+* Human-friendly investment insights
+* Risk warnings and opportunity summaries
 
 ---
 
-## 📜 License 
+## Markets Supported
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.  
-Permissions include:
-- ✅ Free use
-- ✅ Modification
-- ✅ Distribution
-- ✅ Private use
+### India
+
+* NSE Stocks
+* NIFTY 50
+
+### United States
+
+* Large Cap Stocks
+* Growth Stocks
+
+### Crypto
+
+* Bitcoin
+* Ethereum
+* Other major cryptocurrencies
+
+### Indices
+
+* S&P 500
+* NASDAQ
+* NIFTY 50
+* Other major indices
+
+### Commodities
+
+* Gold
+* Silver
+* Crude Oil
+
+---
+
+## Technology Stack
+
+### Backend
+
+* Python
+* Flask
+* TensorFlow
+* Scikit-Learn
+* Pandas
+* NumPy
+* yFinance
+
+### AI & Machine Learning
+
+* LSTM Neural Networks
+* FinBERT
+* Probability Scoring Engine
+* Multi-Agent Architecture
+
+### Frontend
+
+* React
+* Vite
+* Axios
+
+---
+
+## Project Architecture
+
+Prediction Agent
+
+Sentiment Agent
+
+Technical Analysis Agent
+
+Risk Agent
+
+Market Regime Agent
+
+Multi-Timeframe Agent
+
+Probability Agent
+
+Decision Agent
+
+Portfolio Intelligence Agent
+
+LLM Reasoning Agent
+
+---
+
+## Future Roadmap
+
+* AI Investment Copilot
+* Portfolio Rebalancing Assistant
+* Live Market Intelligence
+* AI Chat Interface
+* Macro Economic Analysis
+* Sector Rotation Intelligence
+* Institutional Flow Analysis
+* Real-Time Alerts
+* Personalized Investor Profiles
+
+---
+
+## Vision
+
+To build an AI-powered financial copilot that helps investors understand markets, manage risk, analyze portfolios, and make smarter investment decisions across global markets.
+
