@@ -1,0 +1,26 @@
+{
+  "sequence_length": 60,
+  "feature_columns": [
+    "Close_yfin",
+    "SMA_10",
+    "SMA_20",
+    "EMA_10",
+    "EMA_20",
+    "Rolling_STD_10",
+    "Rolling_Max_10",
+    "Rolling_Min_10",
+    "Momentum_10",
+    "RSI_14",
+    "MACD",
+    "Signal_Line",
+    "Bollinger_Width",
+    "Volume_Change",
+    "Volume_SMA_ratio",
+    "High_Low_range",
+    "Gap",
+    "Return_1d",
+    "Return_5d"
+  ],
+  "predict_direction": true,
+  "forward_bars": 5
+}

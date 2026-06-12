@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 
-
 def add_technical_indicators(df):
 
     # Moving averages
@@ -52,6 +51,8 @@ def add_technical_indicators(df):
     lower_band = df['SMA_20'] - (2 * rolling_std)
 
     bollinger_width = upper_band - lower_band
-
+    print(type(df["Close"]))
+    print(type(df["SMA_20"]))
+    print(type(bollinger_width))
     df['Bollinger_Width'] = bollinger_width
     return df
