@@ -1,0 +1,251 @@
+class ProbabilityAgent:
+
+    # --------------------------------
+    # WEIGHT REGISTRY
+    # All weights in one place.
+    # Must sum to 100 for clarity.
+    # --------------------------------
+    WEIGHTS = {
+        "prediction":  25,
+        "sentiment":   15,
+        "technical":   20,
+        "rsi":         10,
+        "macd":        10,
+        "regime":      15,
+        "timeframe":   5,
+    }
+
+    # Gap threshold below which we
+    # flag low conviction
+    LOW_CONVICTION_THRESHOLD = 10
+
+    def __init__(self):
+        print("Loading Probability Agent...")
+        print("Probability Agent Ready")
+
+    # --------------------------------
+    # SCORE EACH SIGNAL
+    # Returns (bullish_pts, bearish_pts)
+    # for each input — always positive
+    # --------------------------------
+    def _score_prediction(self, prediction):
+        predicted = prediction["predicted_price"]
+        current = prediction["current_price"]
+        pct = ((predicted - current) / current) * 100
+
+        w = self.WEIGHTS["prediction"]
+
+        if pct > 3:
+            return w, 0
+        elif pct > 0:
+            return w * 0.5, 0
+        elif pct < -3:
+            return 0, w
+        else:
+            return 0, w * 0.5
+
+    def _score_sentiment(self, sentiment):
+        w = self.WEIGHTS["sentiment"]
+        score = sentiment["score"]
+
+        if score > 0.2:
+            return w, 0
+        elif score > 0:
+            return w * 0.5, 0
+        elif score < -0.2:
+            return 0, w
+        else:
+            return 0, w * 0.5
+
+    def _score_technical(self, technical):
+        bull = 0
+        bear = 0
+
+        # Trend
+        w_trend = self.WEIGHTS["technical"]
+        if technical["technical_trend"] == "BULLISH":
+            bull += w_trend
+        else:
+            bear += w_trend
+
+        # RSI
+        w_rsi = self.WEIGHTS["rsi"]
+        if technical["rsi_signal"] == "OVERSOLD":
+            bull += w_rsi
+        elif technical["rsi_signal"] == "OVERBOUGHT":
+            bear += w_rsi
+        else:
+            bull += w_rsi * 0.3
+            bear += w_rsi * 0.3
+
+        # MACD
+        w_macd = self.WEIGHTS["macd"]
+        if technical["macd_signal"] == "BULLISH":
+            bull += w_macd
+        else:
+            bear += w_macd
+
+        return bull, bear
+
+    def _score_regime(self, regime):
+        w = self.WEIGHTS["regime"]
+        r = regime["market_regime"]
+
+        if r == "TRENDING_BULL":
+            return w, 0
+        elif r == "TRENDING_BEAR":
+            return 0, w
+        elif r == "PANIC_VOLATILE":
+            return 0, w * 0.8
+        else:
+            return w * 0.2, w * 0.2
+
+    def _score_timeframe(self, timeframe):
+        w = self.WEIGHTS["timeframe"]
+        bull_tf = 0
+        bear_tf = 0
+
+        for tf in timeframe["timeframes"].values():
+            if tf["trend"] == "BULLISH":
+                bull_tf += 1
+            elif tf["trend"] == "BEARISH":
+                bear_tf += 1
+
+        total_tf = bull_tf + bear_tf
+        if total_tf == 0:
+            return 0, 0
+
+        bull_ratio = bull_tf / total_tf
+        bear_ratio = bear_tf / total_tf
+
+        return w * bull_ratio, w * bear_ratio
+
+    # --------------------------------
+    # RISK MODIFIER
+    # Shrinks both scores when risk
+    # is high — reduces total conviction
+    # rather than just penalising bulls
+    # --------------------------------
+    def _apply_risk(self, bull, bear, risk):
+        if not risk:
+            return bull, bear
+
+        level = risk["risk_level"]
+
+        if level == "HIGH":
+            factor = 0.75
+        elif level == "MEDIUM":
+            factor = 0.90
+        else:
+            factor = 1.0
+
+        return bull * factor, bear * factor
+
+    # --------------------------------
+    # NORMALIZE TO PROBABILITIES
+    # Guarantees bull + bear = 100%
+    # even after penalties/bonuses
+    # --------------------------------
+    def _normalize(self, bull, bear):
+        total = bull + bear
+        if total == 0:
+            return 50.0, 50.0
+        bull_pct = (bull / total) * 100
+        bear_pct = (bear / total) * 100
+        return round(bull_pct, 2), round(bear_pct, 2)
+
+    # --------------------------------
+    # MAIN METHOD
+    # --------------------------------
+    def calculate_probability(
+        self,
+        prediction,
+        sentiment,
+        technical,
+        risk,
+        regime,
+        timeframe
+    ):
+        # Score each signal independently
+        bull_pred, bear_pred = self._score_prediction(prediction)
+        bull_sent, bear_sent = self._score_sentiment(sentiment)
+        bull_tech, bear_tech = self._score_technical(technical)
+        bull_reg,  bear_reg  = self._score_regime(regime)
+        bull_tf,   bear_tf   = self._score_timeframe(timeframe)
+
+        # Aggregate
+        bull_total = (
+            bull_pred
+            + bull_sent
+            + bull_tech
+            + bull_reg
+            + bull_tf
+        )
+        bear_total = (
+            bear_pred
+            + bear_sent
+            + bear_tech
+            + bear_reg
+            + bear_tf
+        )
+
+        # Apply risk modifier
+        bull_total, bear_total = self._apply_risk(
+            bull_total,
+            bear_total,
+            risk
+        )
+
+        # Normalize to valid probabilities
+        bull_pct, bear_pct = self._normalize(
+            bull_total,
+            bear_total
+        )
+
+        # Direction
+        if bull_pct > bear_pct:
+            direction = "BULLISH"
+        elif bear_pct > bull_pct:
+            direction = "BEARISH"
+        else:
+            direction = "NEUTRAL"
+
+        # Confidence = distance from 50/50
+        confidence = round(abs(bull_pct - 50) * 2, 2)
+
+        # Low conviction flag
+        gap = abs(bull_pct - bear_pct)
+        low_conviction = gap < self.LOW_CONVICTION_THRESHOLD
+
+        # Per-signal breakdown for transparency
+        signal_breakdown = {
+            "prediction": {
+                "bullish": round(bull_pred, 2),
+                "bearish": round(bear_pred, 2)
+            },
+            "sentiment": {
+                "bullish": round(bull_sent, 2),
+                "bearish": round(bear_sent, 2)
+            },
+            "technical": {
+                "bullish": round(bull_tech, 2),
+                "bearish": round(bear_tech, 2)
+            },
+            "regime": {
+                "bullish": round(bull_reg, 2),
+                "bearish": round(bear_reg, 2)
+            },
+            "timeframe": {
+                "bullish": round(bull_tf, 2),
+                "bearish": round(bear_tf, 2)
+            },
+        }
+
+        return {
+            "bullish_probability":  bull_pct,
+            "bearish_probability":  bear_pct,
+            "market_direction":     direction,
+            "confidence":           confidence,
+            "low_conviction":       low_conviction,
+            "signal_breakdown":     signal_breakdown,
+        }
