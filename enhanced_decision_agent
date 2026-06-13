@@ -1,0 +1,314 @@
+class DecisionAgent:
+
+    def __init__(self):
+        print("Loading Decision Agent...")
+        print("Decision Agent Ready")
+
+    # --------------------------------
+    # SIGNAL SCORER
+    # Converts raw inputs into a
+    # bullish/bearish score (0-100)
+    # --------------------------------
+    def _score_signals(
+        self,
+        prediction,
+        sentiment,
+        risk=None,
+        regime=None
+    ):
+        bullish = 0
+        bearish = 0
+
+        # --- Price prediction (40 pts) ---
+        percent_change = (
+            (
+                prediction["predicted_price"]
+                - prediction["current_price"]
+            )
+            / prediction["current_price"]
+        ) * 100
+
+        if percent_change > 3:
+            bullish += 40
+        elif percent_change > 0:
+            bullish += 20
+        elif percent_change < -3:
+            bearish += 40
+        else:
+            bearish += 20
+
+        # --- Sentiment (30 pts) ---
+        score = sentiment["score"]
+
+        if score > 0.2:
+            bullish += 30
+        elif score > 0:
+            bullish += 15
+        elif score < -0.2:
+            bearish += 30
+        else:
+            bearish += 15
+
+        # --- Risk penalty (up to -15) ---
+        if risk:
+            if risk["risk_level"] == "HIGH":
+                bullish -= 15
+                bearish -= 15
+            elif risk["risk_level"] == "MEDIUM":
+                bullish -= 5
+                bearish -= 5
+
+        # --- Regime bonus (15 pts) ---
+        if regime:
+            r = regime.get("market_regime", "")
+            if r == "TRENDING_BULL":
+                bullish += 15
+            elif r == "TRENDING_BEAR":
+                bearish += 15
+            elif r == "PANIC_VOLATILE":
+                bearish += 10
+
+        # Clamp to 0
+        bullish = max(bullish, 0)
+        bearish = max(bearish, 0)
+
+        return bullish, bearish, round(percent_change, 2)
+
+    # --------------------------------
+    # CONFLICT RESOLVER
+    # Detects when signals disagree
+    # and returns a conflict reason
+    # --------------------------------
+    def _resolve_conflict(
+        self,
+        bullish,
+        bearish,
+        percent_change,
+        sentiment,
+        risk=None
+    ):
+        conflict = None
+        gap = abs(bullish - bearish)
+
+        # Price up but sentiment negative
+        if (
+            percent_change > 0
+            and sentiment["sentiment"] == "negative"
+        ):
+            conflict = (
+                "Price predicts upside but sentiment is negative. "
+                "Reducing conviction."
+            )
+
+        # Price down but sentiment positive
+        elif (
+            percent_change < 0
+            and sentiment["sentiment"] == "positive"
+        ):
+            conflict = (
+                "Price predicts downside but sentiment is positive. "
+                "Reducing conviction."
+            )
+
+        # Signals too close to call
+        elif gap < 10:
+            conflict = (
+                "Bullish and bearish signals are nearly equal. "
+                "No clear edge."
+            )
+
+        # High risk overrides weak signals
+        if (
+            risk
+            and risk["risk_level"] == "HIGH"
+            and gap < 20
+        ):
+            conflict = (
+                "High volatility with weak signal gap. "
+                "Risk too elevated to act."
+            )
+
+        return conflict
+
+    # --------------------------------
+    # POSITION SIZER
+    # Returns suggested % of capital
+    # based on confidence and risk
+    # --------------------------------
+    def _size_position(
+        self,
+        confidence,
+        risk=None
+    ):
+        # Base position from confidence
+        if confidence >= 80:
+            base_pct = 20.0
+        elif confidence >= 60:
+            base_pct = 12.0
+        elif confidence >= 40:
+            base_pct = 6.0
+        else:
+            base_pct = 2.0
+
+        # Risk adjustment
+        if risk:
+            if risk["risk_level"] == "HIGH":
+                base_pct *= 0.5
+            elif risk["risk_level"] == "MEDIUM":
+                base_pct *= 0.75
+
+        return round(base_pct, 1)
+
+    # --------------------------------
+    # MAIN DECISION
+    # --------------------------------
+    def make_decision(
+        self,
+        prediction,
+        sentiment,
+        risk=None,
+        regime=None
+    ):
+        # Score signals
+        bullish, bearish, percent_change = self._score_signals(
+            prediction,
+            sentiment,
+            risk,
+            regime
+        )
+
+        total = bullish + bearish
+        if total == 0:
+            total = 1  # avoid divide by zero
+
+        raw_confidence = (bullish / total) * 100
+
+        # Detect conflicts
+        conflict = self._resolve_conflict(
+            bullish,
+            bearish,
+            percent_change,
+            sentiment,
+            risk
+        )
+
+        # Determine decision
+        if conflict:
+            # Conflicted — downgrade to HOLD
+            # unless one side is very dominant
+            gap = abs(bullish - bearish)
+            if gap >= 30 and bullish > bearish:
+                decision = "BUY"
+                confidence = raw_confidence * 0.6  # penalty
+            elif gap >= 30 and bearish > bullish:
+                decision = "SELL"
+                confidence = (1 - raw_confidence / 100) * 100 * 0.6
+            else:
+                decision = "HOLD"
+                confidence = 50.0
+        else:
+            if bullish > bearish:
+                decision = "BUY"
+                confidence = raw_confidence
+            elif bearish > bullish:
+                decision = "SELL"
+                confidence = (1 - raw_confidence / 100) * 100
+            else:
+                decision = "HOLD"
+                confidence = 50.0
+
+        # Cap confidence
+        confidence = min(round(float(confidence), 2), 95.0)
+
+        # Position sizing
+        if decision == "HOLD":
+            position_size_pct = 0.0
+        else:
+            position_size_pct = self._size_position(
+                confidence,
+                risk
+            )
+
+        # Build explanation
+        explanation = self._build_explanation(
+            decision,
+            percent_change,
+            sentiment,
+            confidence,
+            conflict,
+            risk,
+            regime
+        )
+
+        return {
+            "decision": decision,
+            "percent_change": percent_change,
+            "confidence": confidence,
+            "position_size_pct": position_size_pct,
+            "conflict": conflict,
+            "bullish_score": bullish,
+            "bearish_score": bearish,
+            "explanation": explanation
+        }
+
+    # --------------------------------
+    # EXPLANATION BUILDER
+    # Dynamic, not hardcoded strings
+    # --------------------------------
+    def _build_explanation(
+        self,
+        decision,
+        percent_change,
+        sentiment,
+        confidence,
+        conflict,
+        risk,
+        regime
+    ):
+        parts = []
+
+        # Price direction
+        direction = "upward" if percent_change > 0 else "downward"
+        parts.append(
+            f"Model predicts {direction} movement "
+            f"of {abs(percent_change):.2f}%."
+        )
+
+        # Sentiment
+        parts.append(
+            f"Market sentiment is {sentiment['sentiment']} "
+            f"(score: {sentiment['score']:.3f})."
+        )
+
+        # Risk context
+        if risk:
+            parts.append(
+                f"Risk level is {risk['risk_level']} "
+                f"({risk['volatility_percent']:.1f}% volatility)."
+            )
+
+        # Regime context
+        if regime:
+            parts.append(
+                f"Market regime: {regime['market_regime']}."
+            )
+
+        # Conflict note
+        if conflict:
+            parts.append(f"Conflict detected: {conflict}")
+
+        # Final verdict
+        if decision == "BUY":
+            parts.append(
+                f"Signals favour a BUY with {confidence:.0f}% confidence."
+            )
+        elif decision == "SELL":
+            parts.append(
+                f"Signals favour a SELL with {confidence:.0f}% confidence."
+            )
+        else:
+            parts.append(
+                "Signals are mixed or weak. Holding is the safer choice."
+            )
+
+        return " ".join(parts)
