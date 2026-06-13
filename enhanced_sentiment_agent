@@ -1,0 +1,372 @@
+import time
+import feedparser
+import requests
+
+from dotenv import load_dotenv
+from transformers import pipeline
+
+load_dotenv()
+
+
+class SentimentAgent:
+
+    # --------------------------------
+    # SOURCE REGISTRY
+    # weight = how much this source
+    # counts in the final score
+    # --------------------------------
+    RSS_SOURCES = [
+        {
+            "name": "Yahoo Finance",
+            "url": "https://finance.yahoo.com/rss/headline?s={ticker}",
+            "weight": 1.5,
+            "ticker_in_url": True
+        },
+        {
+            "name": "MarketWatch",
+            "url": "https://feeds.marketwatch.com/marketwatch/topstories/",
+            "weight": 1.5,
+            "ticker_in_url": False
+        },
+        {
+            "name": "CNBC",
+            "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+            "weight": 1.2,
+            "ticker_in_url": False
+        },
+    ]
+
+    REDDIT_SOURCES = [
+        {"subreddit": "stocks",        "weight": 1.0},
+        {"subreddit": "investing",     "weight": 1.0},
+        {"subreddit": "wallstreetbets","weight": 0.6},
+        {"subreddit": "StockMarket",   "weight": 0.8},
+        {"subreddit": "options",       "weight": 0.7},
+    ]
+
+    CACHE_TTL = 900  # 15 minutes in seconds
+
+    def __init__(self):
+        print("Loading Sentiment Agent...")
+
+        self.classifier = pipeline(
+            "sentiment-analysis",
+            model="ProsusAI/finbert"
+        )
+
+        # In-memory cache: ticker -> {result, timestamp}
+        self._cache = {}
+
+        print("Sentiment Agent Ready")
+
+    # --------------------------------
+    # CACHE HELPERS
+    # --------------------------------
+    def _cache_get(self, ticker):
+        entry = self._cache.get(ticker)
+        if not entry:
+            return None
+        age = time.time() - entry["timestamp"]
+        if age > self.CACHE_TTL:
+            del self._cache[ticker]
+            return None
+        return entry["result"]
+
+    def _cache_set(self, ticker, result):
+        self._cache[ticker] = {
+            "result": result,
+            "timestamp": time.time()
+        }
+
+    # --------------------------------
+    # RSS FETCHER
+    # Returns list of (text, weight)
+    # --------------------------------
+    def _fetch_rss(self, ticker):
+        items = []
+
+        for source in self.RSS_SOURCES:
+            url = source["url"]
+            if source["ticker_in_url"]:
+                url = url.format(ticker=ticker)
+
+            try:
+                feed = feedparser.parse(url)
+                count = 0
+
+                for entry in feed.entries[:5]:
+                    text = entry.title.strip()
+                    if not text:
+                        continue
+                    items.append({
+                        "text": text,
+                        "weight": source["weight"],
+                        "source": source["name"]
+                    })
+                    count += 1
+
+                print(
+                    f"[RSS] {source['name']}: "
+                    f"{count} headlines fetched"
+                )
+
+            except Exception as e:
+                print(f"[RSS] {source['name']} failed: {e}")
+
+        return items
+
+    # --------------------------------
+    # REDDIT FETCHER
+    # Returns list of (text, weight)
+    # --------------------------------
+    def _fetch_reddit(self, ticker):
+        items = []
+
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 "
+                "(Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 "
+                "(KHTML, like Gecko) "
+                "Chrome/120 Safari/537.36"
+            ),
+            "Accept": "application/json"
+        }
+
+        for source in self.REDDIT_SOURCES:
+            subreddit = source["subreddit"]
+            url = (
+                f"https://www.reddit.com/r/{subreddit}/search.json"
+                f"?q={ticker}"
+                f"&restrict_sr=1"
+                f"&sort=relevance"
+                f"&limit=5"
+            )
+
+            try:
+                response = requests.get(
+                    url,
+                    headers=headers,
+                    timeout=10
+                )
+
+                print(
+                    f"[Reddit] r/{subreddit} "
+                    f"status: {response.status_code}"
+                )
+
+                if response.status_code == 429:
+                    print(
+                        f"[Reddit] r/{subreddit} "
+                        f"rate limited — skipping"
+                    )
+                    continue
+
+                if response.status_code != 200:
+                    continue
+
+                data = response.json()
+                children = data["data"]["children"]
+
+                for post in children[:5]:
+                    title = post["data"]["title"].strip()
+                    if not title:
+                        continue
+                    items.append({
+                        "text": title,
+                        "weight": source["weight"],
+                        "source": f"r/{subreddit}"
+                    })
+
+            except Exception as e:
+                print(f"[Reddit] r/{subreddit} error: {e}")
+
+        return items
+
+    # --------------------------------
+    # FINBERT SCORER
+    # Runs classifier on each item,
+    # returns weighted score list
+    # --------------------------------
+    def _score_items(self, items):
+        scored = []
+
+        for item in items:
+            try:
+                result = self.classifier(
+                    item["text"][:512]  # FinBERT max input
+                )[0]
+
+                label = result["label"].lower()
+                raw_score = result["score"]
+
+                if label == "positive":
+                    polarity = raw_score
+                elif label == "negative":
+                    polarity = -raw_score
+                else:
+                    polarity = 0.0
+
+                scored.append({
+                    "text": item["text"],
+                    "source": item["source"],
+                    "weight": item["weight"],
+                    "polarity": polarity,
+                    "label": label
+                })
+
+            except Exception as e:
+                print(f"[FinBERT] scoring error: {e}")
+
+        return scored
+
+    # --------------------------------
+    # WEIGHTED AVERAGE
+    # --------------------------------
+    def _weighted_average(self, scored):
+        if not scored:
+            return 0.0
+
+        total_weight = sum(s["weight"] for s in scored)
+        if total_weight == 0:
+            return 0.0
+
+        weighted_sum = sum(
+            s["polarity"] * s["weight"]
+            for s in scored
+        )
+
+        return weighted_sum / total_weight
+
+    # --------------------------------
+    # SOURCE BREAKDOWN
+    # Per-source average for debugging
+    # --------------------------------
+    def _source_breakdown(self, scored):
+        sources = {}
+
+        for s in scored:
+            name = s["source"]
+            if name not in sources:
+                sources[name] = {
+                    "count": 0,
+                    "weighted_sum": 0.0,
+                    "total_weight": 0.0
+                }
+            sources[name]["count"] += 1
+            sources[name]["weighted_sum"] += (
+                s["polarity"] * s["weight"]
+            )
+            sources[name]["total_weight"] += s["weight"]
+
+        breakdown = {}
+        for name, data in sources.items():
+            if data["total_weight"] > 0:
+                avg = (
+                    data["weighted_sum"]
+                    / data["total_weight"]
+                )
+            else:
+                avg = 0.0
+            breakdown[name] = {
+                "count": data["count"],
+                "avg_score": round(avg, 4)
+            }
+
+        return breakdown
+
+    # --------------------------------
+    # MAIN ANALYSIS
+    # --------------------------------
+    def analyze_sentiment(self, ticker):
+
+        # Check cache first
+        cached = self._cache_get(ticker)
+        if cached:
+            print(f"[Cache] Returning cached result for {ticker}")
+            result = cached.copy()
+            result["cached"] = True
+            return result
+
+        # Fetch from all sources
+        rss_items = self._fetch_rss(ticker)
+        reddit_items = self._fetch_reddit(ticker)
+        all_items = rss_items + reddit_items
+
+        # Fallback: no data at all
+        if not all_items:
+            print(
+                f"[Sentiment] No data fetched for {ticker}. "
+                f"Returning neutral with warning."
+            )
+            return {
+                "ticker": ticker,
+                "sentiment": "neutral",
+                "score": 0.0,
+                "confidence": "low",
+                "data_quality": "warning — no sources returned data",
+                "source_breakdown": {},
+                "news_count": 0,
+                "reddit_count": 0,
+                "total_analyzed": 0,
+                "cached": False
+            }
+
+        # Score all items via FinBERT
+        scored = self._score_items(all_items)
+
+        # Fallback: scoring failed entirely
+        if not scored:
+            return {
+                "ticker": ticker,
+                "sentiment": "neutral",
+                "score": 0.0,
+                "confidence": "low",
+                "data_quality": "warning — scoring failed on all items",
+                "source_breakdown": {},
+                "news_count": len(rss_items),
+                "reddit_count": len(reddit_items),
+                "total_analyzed": 0,
+                "cached": False
+            }
+
+        # Compute weighted average score
+        avg_score = self._weighted_average(scored)
+
+        # Sentiment label
+        if avg_score > 0.05:
+            sentiment = "positive"
+        elif avg_score < -0.05:
+            sentiment = "negative"
+        else:
+            sentiment = "neutral"
+
+        # Confidence based on item count
+        total = len(scored)
+        if total >= 15:
+            confidence = "high"
+        elif total >= 7:
+            confidence = "medium"
+        else:
+            confidence = "low"
+
+        # Source breakdown for transparency
+        breakdown = self._source_breakdown(scored)
+
+        result = {
+            "ticker": ticker,
+            "sentiment": sentiment,
+            "score": round(float(avg_score), 4),
+            "confidence": confidence,
+            "data_quality": "ok",
+            "source_breakdown": breakdown,
+            "news_count": len(rss_items),
+            "reddit_count": len(reddit_items),
+            "total_analyzed": total,
+            "cached": False
+        }
+
+        # Store in cache
+        self._cache_set(ticker, result)
+
+        return result
