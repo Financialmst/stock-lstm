@@ -10,16 +10,16 @@ FinIntel AI analyses any stock ticker through 10 specialised AI agents, aggregat
 
 | Agent | What It Does | Status |
 |---|---|---|
-| PredictionAgent | Pure Transformer direction classifier — 56.5% accuracy, +4.4% edge | ✅ Live |
-| SentimentAgent | FinBERT on live RSS news + Reddit (5 subreddits) | ✅ Live |
-| RiskAgent | Volatility → LOW / MEDIUM / HIGH | ✅ Live |
-| TechnicalAgent | RSI, MACD, SMA → trend + signal labels | ✅ Live |
-| RegimeAgent | TRENDING_BULL/BEAR, VOLATILE_BULL/BEAR, SIDEWAYS | ✅ Live |
-| MultiTimeframeAgent | 1M / 3M / 6M / 1Y human-readable labels | ✅ Live |
-| ProbabilityAgent | Aggregates all signals → Bullish %, Bearish %, Confidence | ✅ Live |
-| DecisionAgent | BUY / SELL / HOLD | ✅ Live |
-| LLMReasoningAgent | Plain-English explanation of all signals | ✅ Live |
-| PortfolioAgent | Diversification, sector exposure, correlation | 🔲 Planned |
+| Prediction Agent | Pure Transformer direction classifier — 56.5% accuracy, +4.4% edge | ✅ Live |
+| Sentiment Agent | FinBERT on live RSS news + Reddit (5 subreddits) | ✅ Live |
+| Risk Agent | Volatility → LOW / MEDIUM / HIGH | ✅ Live |
+| Technical Agent | RSI, MACD, SMA → trend + signal labels | ✅ Live |
+| Regime Agent | TRENDING_BULL/BEAR, VOLATILE_BULL/BEAR, SIDEWAYS | ✅ Live |
+| MultiTimeframe Agent | 1M / 3M / 6M / 1Y human-readable labels | ✅ Live |
+| Probability Agent | Aggregates all signals → Bullish %, Bearish %, Confidence | ✅ Live |
+| Decision Agent | BUY / SELL / HOLD | ✅ Live |
+| LLMReasoning Agent | Plain-English explanation of all signals | ✅ Live |
+| Portfolio Agent | Diversification, sector exposure, correlation | 🔲 Planned |
 
 ## PredictionAgent — ML Details
 
