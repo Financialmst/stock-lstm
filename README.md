@@ -10,7 +10,7 @@ FinIntel AI analyses any stock ticker through 10 specialised AI agents, aggregat
 
 | Agent | What It Does | Status |
 |---|---|---|
-| PredictioncAgent | Pure Transformer direction classifier — 56.5% accuracy, +4.4% edge | ✅ Live |
+| Prediction Agent | Pure Transformer direction classifier — 56.5% accuracy, +4.4% edge | ✅ Live |
 | Sentiment Agent | FinBERT on live RSS news + Reddit (5 subreddits) | ✅ Live |
 | Risk Agent | Volatility → LOW / MEDIUM / HIGH | ✅ Live |
 | Technical Agent | RSI, MACD, SMA → trend + signal labels | ✅ Live |
