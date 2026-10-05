@@ -114,7 +114,9 @@ python -m backtesting.run_backtest --ticker AAPL --mode walkforward --folds 5
 ## API
 
 **Start analysis — returns immediately:**
+```POST
 POST /analyze/<ticker>
+```
 ```json
 {
   "task_id": "abc-123",
