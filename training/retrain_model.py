@@ -12,7 +12,6 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout, BatchNormalization
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.optimizers import Adam
-
 # ─────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────
@@ -276,6 +275,10 @@ if PREDICT_DIRECTION:
     print(f"  Test Accuracy        : {acc*100:.2f}%")
     print(f"  Majority Class Base  : {baseline_acc*100:.2f}%")
     print(f"  Edge over baseline   : {(acc - baseline_acc)*100:+.2f}%")
+    from sklearn.metrics import f1_score, classification_report
+    f1 = f1_score(y_test, y_pred)
+    print(f"  F1 Score           : {f1:.4f}")
+    print(classification_report(y_test, y_pred, target_names=["DOWN", "UP"]))
     if acc > baseline_acc + 0.02:
         print("  ✅ Model has statistically meaningful directional edge")
     else:
@@ -284,8 +287,6 @@ else:
     from sklearn.metrics import mean_absolute_error
     mae = mean_absolute_error(y_test, y_pred_raw)
     print(f"  Test MAE: {mae:.4f}")
-
-
 # ─────────────────────────────────────────────
 # 7. SAVE
 # ─────────────────────────────────────────────

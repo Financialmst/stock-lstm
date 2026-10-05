@@ -1,0 +1,28 @@
+{
+  "model_name": "transformer_direction",
+  "sequence_length": 60,
+  "feature_columns": [
+    "Close_yfin",
+    "SMA_10",
+    "SMA_20",
+    "EMA_10",
+    "EMA_20",
+    "Rolling_STD_10",
+    "Rolling_Max_10",
+    "Rolling_Min_10",
+    "Momentum_10",
+    "RSI_14",
+    "MACD",
+    "Signal_Line",
+    "Bollinger_Width",
+    "Return_1d",
+    "Return_5d",
+    "High_Low_range",
+    "Volume_Change",
+    "Volume_SMA_ratio"
+  ],
+  "target": "_dir_target",
+  "test_accuracy": 56.63,
+  "edge_over_baseline": 4.53,
+  "architecture": "transformer"
+}

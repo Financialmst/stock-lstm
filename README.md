@@ -1,178 +1,87 @@
-# AI Financial Intelligence Platform
+# FinIntel AI — AI Stock Intelligence Platform
 
-## Overview
+> Not a stock predictor. An AI Financial Intelligence Platform combining **ML prediction · sentiment analysis · market regime detection · probabilistic forecasting · LLM reasoning** for India, US, Crypto, and Global Markets.
 
-AI Financial Intelligence Platform is a multi-agent system designed to analyze global financial markets and provide actionable investment insights for everyday investors.
+## What It Does
 
-The platform combines machine learning, technical analysis, sentiment analysis, risk assessment, market regime detection, portfolio intelligence, and AI reasoning into a single decision-support system.
+FinIntel AI analyses any stock ticker through 10 specialised AI agents, aggregates their signals into a calibrated probability, and delivers a plain-English explanation a retail investor can act on.
 
-Instead of presenting raw indicators, the platform translates complex market data into simple, human-friendly insights.
+## Agent Architecture
 
----
+| Agent | What It Does | Status |
+|---|---|---|
+| PredictionAgent | Pure Transformer direction classifier — 56.5% accuracy, +4.4% edge | ✅ Live |
+| SentimentAgent | FinBERT on live RSS news + Reddit (5 subreddits) | ✅ Live |
+| RiskAgent | Volatility → LOW / MEDIUM / HIGH | ✅ Live |
+| TechnicalAgent | RSI, MACD, SMA → trend + signal labels | ✅ Live |
+| RegimeAgent | TRENDING_BULL/BEAR, VOLATILE_BULL/BEAR, SIDEWAYS | ✅ Live |
+| MultiTimeframeAgent | 1M / 3M / 6M / 1Y human-readable labels | ✅ Live |
+| ProbabilityAgent | Aggregates all signals → Bullish %, Bearish %, Confidence | ✅ Live |
+| DecisionAgent | BUY / SELL / HOLD | ✅ Live |
+| LLMReasoningAgent | Plain-English explanation of all signals | ✅ Live |
+| PortfolioAgent | Diversification, sector exposure, correlation | 🔲 Planned |
 
-## Key Features
+## PredictionAgent — ML Details
 
-### Price Prediction
+- Architecture: Pure Transformer (3 blocks, multi-head attention, learnable positional encoding)
+- Target: Binary direction — UP >0.5% in 5 trading days
+- Features: 18 (price, momentum, volume, returns, volatility)
+- Dataset: 28,182 rows · 22 tickers · 5 years
+- Test Accuracy: 56.51% | Edge over baseline: +4.42%
+- Validated with walk-forward backtesting (5 folds)
 
-* LSTM-based deep learning model
-* Global multi-market training dataset
-* Supports stocks, indices, commodities, and crypto
+### ML Development History
 
-### Sentiment Intelligence
+| Attempt | Result | Root Cause |
+|---|---|---|
+| LSTM regression | 44% direction accuracy | MSE loss teaches "tomorrow ≈ today" |
+| LSTM classification | 50% — coin flip | Dead training, collapsed output |
+| Pure Transformer (current) | 56.51%, +4.42% edge | Full attention over 60-bar window |
 
-* Financial news sentiment analysis
-* Reddit sentiment analysis
-* FinBERT-powered classification
+## Tech Stack
 
-### Technical Analysis
+| Layer | Technology |
+|---|---|
+| ML / DL | TensorFlow / Keras |
+| NLP | Hugging Face Transformers (FinBERT) |
+| Classical ML | scikit-learn |
+| Task Queue | Celery + Redis |
+| Backend | Flask |
+| Frontend | React + Vite |
+| External Data | SEC EDGAR Form 4 API, FINRA Reg SHO API |
 
-* RSI
-* MACD
-* Moving Averages
-* Momentum Indicators
-* Bollinger Metrics
+## Setup
 
-### Risk Intelligence
+```bash
+pip install tensorflow keras scikit-learn pandas numpy yfinance
+pip install flask flask-cors celery redis
+pip install transformers praw feedparser joblib requests
+```
 
-* Volatility assessment
-* Risk classification
-* Confidence scoring
+```bash
+# Terminal 1
+redis-server
 
-### Market Regime Detection
+# Terminal 2
+celery -A celery_app.celery worker --loglevel=info --concurrency=2 --pool=threads
 
-* Trending Bull Market
-* Trending Bear Market
-* Volatile Bull Market
-* Volatile Bear Market
-* Sideways Markets
+# Terminal 3
+python app.py
 
-### Multi-Timeframe Analysis
+# Terminal 4
+cd frontend && npm install && npm run dev
+```
 
-* Short-Term Outlook
-* Medium-Term Outlook
-* Long-Term Outlook
+## Train the Model
 
-### Probability Engine
+```bash
+python training/train_transformer.py --target direction
+```
 
-* Bullish Probability
-* Bearish Probability
-* Market Direction
-* Confidence Estimation
+## Run Backtest
 
-### Portfolio Intelligence
+```bash
+python -m backtesting.run_backtest --ticker AAPL --mode walkforward --folds 5
+```
 
-* Diversification Analysis
-* Portfolio Risk Assessment
-* Asset Concentration Detection
-* Portfolio Health Evaluation
-
-### AI Reasoning
-
-* Converts complex financial signals into simple explanations
-* Human-friendly investment insights
-* Risk warnings and opportunity summaries
-
----
-
-## Markets Supported
-
-### India
-
-* NSE Stocks
-* NIFTY 50
-
-### United States
-
-* Large Cap Stocks
-* Growth Stocks
-
-### Crypto
-
-* Bitcoin
-* Ethereum
-* Other major cryptocurrencies
-
-### Indices
-
-* S&P 500
-* NASDAQ
-* NIFTY 50
-* Other major indices
-
-### Commodities
-
-* Gold
-* Silver
-* Crude Oil
-
----
-
-## Technology Stack
-
-### Backend
-
-* Python
-* Flask
-* TensorFlow
-* Scikit-Learn
-* Pandas
-* NumPy
-* yFinance
-
-### AI & Machine Learning
-
-* LSTM Neural Networks
-* FinBERT
-* Probability Scoring Engine
-* Multi-Agent Architecture
-
-### Frontend
-
-* React
-* Vite
-* Axios
-
----
-
-## Project Architecture
-
-Prediction Agent
-
-Sentiment Agent
-
-Technical Analysis Agent
-
-Risk Agent
-
-Market Regime Agent
-
-Multi-Timeframe Agent
-
-Probability Agent
-
-Decision Agent
-
-Portfolio Intelligence Agent
-
-LLM Reasoning Agent
-
----
-
-## Future Roadmap
-
-* AI Investment Copilot
-* Portfolio Rebalancing Assistant
-* Live Market Intelligence
-* AI Chat Interface
-* Macro Economic Analysis
-* Sector Rotation Intelligence
-* Institutional Flow Analysis
-* Real-Time Alerts
-* Personalized Investor Profiles
-
----
-
-## Vision
-
-To build an AI-powered financial copilot that helps investors understand markets, manage risk, analyze portfolios, and make smarter investment decisions across global markets.
-
+## API
