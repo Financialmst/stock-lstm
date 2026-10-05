@@ -126,7 +126,9 @@ POST /analyze/<ticker>
 ```
 
 **Poll for result:**
+```GET
 GET /task/<task_id>
+```
 ```json
 {
   "status": "SUCCESS",
