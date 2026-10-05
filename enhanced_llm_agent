@@ -1,0 +1,251 @@
+import os
+import requests
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+class LLMReasoningAgent:
+
+    GEMINI_URL = (
+        "https://generativelanguage.googleapis.com"
+        "/v1beta/models/gemini-1.5-flash:generateContent"
+    )
+
+    def __init__(self):
+        print("Loading LLM Reasoning Agent...")
+        self.api_key = os.getenv("GEMINI_API_KEY")
+        if not self.api_key:
+            print(
+                "[LLM] Warning: GEMINI_API_KEY not set. "
+                "Will use fallback reasoning."
+            )
+        print("LLM Reasoning Agent Ready")
+
+    # --------------------------------
+    # BUILD PROMPT
+    # Structures all agent outputs
+    # into a clean analyst brief
+    # --------------------------------
+    def _build_prompt(
+        self,
+        ticker,
+        sentiment,
+        technical,
+        regime,
+        probability,
+        decision=None
+    ):
+        # Optional decision context
+        decision_line = ""
+        if decision:
+            decision_line = (
+                f"- Final decision: {decision['decision']} "
+                f"(confidence: {decision['confidence']}%, "
+                f"position size: {decision['position_size_pct']}% of capital)\n"
+            )
+            if decision.get("conflict"):
+                decision_line += (
+                    f"- Signal conflict detected: "
+                    f"{decision['conflict']}\n"
+                )
+
+        prompt = f"""You are a professional financial analyst AI. 
+Based on the following signals for {ticker}, write a clear, 
+concise 3-4 sentence analysis that a retail investor would understand.
+Do not use bullet points. Write in flowing prose. 
+Be direct about the trade signal and why. 
+Do not add disclaimers or say "consult a financial advisor".
+
+SIGNALS:
+- Sentiment: {sentiment['sentiment']} (score: {sentiment['score']}, confidence: {sentiment.get('confidence', 'unknown')})
+- Technical trend: {technical['technical_trend']}
+- RSI: {technical['rsi']} ({technical['rsi_signal']})
+- MACD signal: {technical['macd_signal']}
+- SMA 20: {technical['sma_20']} | SMA 50: {technical['sma_50']}
+- Market regime: {regime['market_regime']} (volatility: {regime['volatility']}%)
+- Bullish probability: {probability['bullish_probability']}%
+- Bearish probability: {probability['bearish_probability']}%
+- Overall direction: {probability['market_direction']}
+{decision_line}
+Write the analysis now:"""
+
+        return prompt
+
+    # --------------------------------
+    # GEMINI API CALL
+    # --------------------------------
+    def _call_gemini(self, prompt):
+        try:
+            response = requests.post(
+                self.GEMINI_URL,
+                params={"key": self.api_key},
+                json={
+                    "contents": [
+                        {
+                            "parts": [
+                                {"text": prompt}
+                            ]
+                        }
+                    ],
+                    "generationConfig": {
+                        "temperature": 0.4,
+                        "maxOutputTokens": 300,
+                    }
+                },
+                timeout=15
+            )
+
+            if response.status_code != 200:
+                print(
+                    f"[LLM] Gemini API error: "
+                    f"{response.status_code} — {response.text[:200]}"
+                )
+                return None
+
+            data = response.json()
+
+            text = (
+                data["candidates"][0]
+                ["content"]["parts"][0]["text"]
+            ).strip()
+
+            return text
+
+        except Exception as e:
+            print(f"[LLM] Gemini call failed: {e}")
+            return None
+
+    # --------------------------------
+    # FALLBACK REASONING
+    # Used when Gemini is unavailable
+    # Same logic as original agent
+    # but slightly improved phrasing
+    # --------------------------------
+    def _fallback_reasoning(
+        self,
+        sentiment,
+        technical,
+        regime,
+        probability,
+        decision=None
+    ):
+        parts = []
+
+        # Sentiment
+        if sentiment["sentiment"] == "positive":
+            parts.append("Market sentiment is broadly positive.")
+        elif sentiment["sentiment"] == "negative":
+            parts.append("Market sentiment is broadly negative.")
+        else:
+            parts.append("Market sentiment is neutral.")
+
+        # Technical
+        if technical["technical_trend"] == "BULLISH":
+            parts.append(
+                f"Technical indicators are bullish — "
+                f"the 20-day SMA ({technical['sma_20']}) "
+                f"is above the 50-day SMA ({technical['sma_50']})."
+            )
+        else:
+            parts.append(
+                f"Technical indicators are bearish — "
+                f"the 20-day SMA ({technical['sma_20']}) "
+                f"is below the 50-day SMA ({technical['sma_50']})."
+            )
+
+        # RSI
+        if technical["rsi_signal"] == "OVERBOUGHT":
+            parts.append(
+                f"RSI is at {technical['rsi']}, "
+                f"signalling overbought conditions."
+            )
+        elif technical["rsi_signal"] == "OVERSOLD":
+            parts.append(
+                f"RSI is at {technical['rsi']}, "
+                f"signalling oversold conditions — "
+                f"potential reversal opportunity."
+            )
+
+        # Regime
+        regime_map = {
+            "TRENDING_BULL": "a confirmed bullish trend",
+            "TRENDING_BEAR": "a confirmed bearish trend",
+            "PANIC_VOLATILE": "a high-volatility panic regime",
+            "SIDEWAYS": "a sideways, range-bound market"
+        }
+        regime_label = regime_map.get(
+            regime["market_regime"],
+            regime["market_regime"]
+        )
+        parts.append(
+            f"The broader market is in {regime_label} "
+            f"with {regime['volatility']}% volatility."
+        )
+
+        # Probability
+        parts.append(
+            f"Aggregated signals give a "
+            f"{probability['bullish_probability']}% bullish "
+            f"and {probability['bearish_probability']}% bearish probability, "
+            f"pointing {probability['market_direction'].lower()}."
+        )
+
+        # Decision summary
+        if decision:
+            if decision.get("conflict"):
+                parts.append(
+                    f"Note: {decision['conflict']}"
+                )
+            parts.append(
+                f"Final signal: {decision['decision']} "
+                f"with {decision['confidence']}% confidence."
+            )
+
+        return " ".join(parts)
+
+    # --------------------------------
+    # MAIN METHOD
+    # --------------------------------
+    def generate_reasoning(
+        self,
+        sentiment,
+        technical,
+        regime,
+        probability,
+        ticker="",
+        decision=None
+    ):
+        reasoning = None
+        source = "gemini"
+
+        # Try Gemini first
+        if self.api_key:
+            prompt = self._build_prompt(
+                ticker,
+                sentiment,
+                technical,
+                regime,
+                probability,
+                decision
+            )
+            reasoning = self._call_gemini(prompt)
+
+        # Fallback if Gemini failed or no key
+        if not reasoning:
+            print("[LLM] Using fallback reasoning.")
+            reasoning = self._fallback_reasoning(
+                sentiment,
+                technical,
+                regime,
+                probability,
+                decision
+            )
+            source = "fallback"
+
+        return {
+            "ticker": ticker,
+            "reasoning": reasoning,
+            "source": source
+        }
