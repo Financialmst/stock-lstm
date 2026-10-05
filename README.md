@@ -85,3 +85,70 @@ python -m backtesting.run_backtest --ticker AAPL --mode walkforward --folds 5
 ```
 
 ## API
+
+## API
+POST /analyze/<ticker> → returns task_id instantly
+GET /task/<task_id> → returns progress or final result
+
+**Start Analysis**
+```json
+POST /analyze/AAPL
+{
+  "task_id": "abc-123",
+  "ticker": "AAPL",
+  "status": "PENDING"
+}
+```
+
+**Poll for Result**
+```json
+GET /task/abc-123
+{
+  "status": "SUCCESS",
+  "result": {
+    "ticker": "AAPL",
+    "current_price": 213.45,
+    "predicted_price": 214.20,
+    "direction": "UP",
+    "up_probability": 0.68,
+    "sentiment": "positive",
+    "decision": "BUY",
+    "risk_level": "MEDIUM",
+    "bullish_probability": 72,
+    "bearish_probability": 28,
+    "confidence": 81,
+    "market_regime": "TRENDING_BULL",
+    "timeframe_short": "Bullish",
+    "timeframe_medium": "Neutral",
+    "timeframe_long": "Bullish",
+    "ai_reasoning": "AAPL is showing strong upward momentum...",
+    "fetched_at": "2026-06-14T10:30:00Z"
+  }
+}
+```
+
+## Market Coverage
+
+India · US · Crypto · Indices · Commodities — 22 global tickers
+
+## Roadmap
+
+- [x] 10-agent signal pipeline
+- [x] Pure Transformer direction model
+- [x] Walk-forward backtesting engine
+- [x] Async Flask + Celery + Redis
+- [x] SEC EDGAR insider data integration
+- [x] FINRA short interest data integration
+- [ ] Phase 1 — AI Summary, Warnings, Confidence engine
+- [ ] Phase 2 — Investment style detection
+- [ ] Phase 3 — Portfolio Intelligence
+- [ ] Phase 4 — News Intelligence (RAG-based)
+- [ ] Phase 5 — AI Chat Mode
+
+## Disclaimer
+
+For educational and research purposes only. Not financial advice.
+
+## Author
+
+ECE student at NIT Silchar (CGPA: 8.57). Built as a portfolio project demonstrating applied ML in financial markets.
