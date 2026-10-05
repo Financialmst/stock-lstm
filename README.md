@@ -2,33 +2,50 @@
 
 > Not a stock predictor. An AI Financial Intelligence Platform combining **ML prediction · sentiment analysis · market regime detection · probabilistic forecasting · LLM reasoning** for India, US, Crypto, and Global Markets.
 
+---
+
 ## What It Does
 
 FinIntel AI analyses any stock ticker through 10 specialised AI agents, aggregates their signals into a calibrated probability, and delivers a plain-English explanation a retail investor can act on.
+User types: RELIANCE.NS
+↓
+10 agents analyse in parallel (async)
+↓
+ProbabilityAgent aggregates all signals
+↓
+DecisionAgent → BUY / SELL / HOLD
+↓
+LLMReasoningAgent → plain English explanation
+↓
+React dashboard with live progress
+
+---
 
 ## Agent Architecture
 
 | Agent | What It Does | Status |
 |---|---|---|
-| Prediction Agent | Pure Transformer direction classifier — 56.5% accuracy, +4.4% edge | ✅ Live |
-| Sentiment Agent | FinBERT on live RSS news + Reddit (5 subreddits) | ✅ Live |
-| Risk Agent | Volatility → LOW / MEDIUM / HIGH | ✅ Live |
-| Technical Agent | RSI, MACD, SMA → trend + signal labels | ✅ Live |
-| Regime Agent | TRENDING_BULL/BEAR, VOLATILE_BULL/BEAR, SIDEWAYS | ✅ Live |
-| MultiTimeframe Agent | 1M / 3M / 6M / 1Y human-readable labels | ✅ Live |
-| Probability Agent | Aggregates all signals → Bullish %, Bearish %, Confidence | ✅ Live |
-| Decision Agent | BUY / SELL / HOLD | ✅ Live |
-| LLMReasoning Agent | Plain-English explanation of all signals | ✅ Live |
-| Portfolio Agent | Diversification, sector exposure, correlation | 🔲 Planned |
+| PredictionAgent | Pure Transformer direction classifier — 56.5% accuracy, +4.4% edge | ✅ Live |
+| SentimentAgent | FinBERT on live RSS news + Reddit (5 subreddits) | ✅ Live |
+| RiskAgent | Volatility → LOW / MEDIUM / HIGH | ✅ Live |
+| TechnicalAgent | RSI, MACD, SMA → trend + signal labels | ✅ Live |
+| RegimeAgent | TRENDING_BULL/BEAR, VOLATILE_BULL/BEAR, SIDEWAYS | ✅ Live |
+| MultiTimeframeAgent | 1M / 3M / 6M / 1Y human-readable labels | ✅ Live |
+| ProbabilityAgent | Aggregates all signals → Bullish %, Bearish %, Confidence | ✅ Live |
+| DecisionAgent | BUY / SELL / HOLD | ✅ Live |
+| LLMReasoningAgent | Plain-English explanation of all signals | ✅ Live |
+| PortfolioAgent | Diversification, sector exposure, correlation | 🔲 Planned |
+
+---
 
 ## PredictionAgent — ML Details
 
-- Architecture: Pure Transformer (3 blocks, multi-head attention, learnable positional encoding)
-- Target: Binary direction — UP >0.5% in 5 trading days
-- Features: 18 (price, momentum, volume, returns, volatility)
-- Dataset: 28,182 rows · 22 tickers · 5 years
-- Test Accuracy: 56.51% | Edge over baseline: +4.42%
-- Validated with walk-forward backtesting (5 folds)
+- **Architecture:** Pure Transformer (3 blocks, multi-head attention, learnable positional encoding)
+- **Target:** Binary direction — UP >0.5% in 5 trading days
+- **Features:** 18 (price, momentum, volume, returns, volatility)
+- **Dataset:** 28,182 rows · 22 tickers · 5 years
+- **Test Accuracy:** 56.51% | **Edge over baseline:** +4.42%
+- **Validation:** Walk-forward backtesting (5 folds)
 
 ### ML Development History
 
@@ -36,7 +53,9 @@ FinIntel AI analyses any stock ticker through 10 specialised AI agents, aggregat
 |---|---|---|
 | LSTM regression | 44% direction accuracy | MSE loss teaches "tomorrow ≈ today" |
 | LSTM classification | 50% — coin flip | Dead training, collapsed output |
-| Pure Transformer (current) | 56.51%, +4.42% edge | Full attention over 60-bar window |
+| **Pure Transformer (current)** | **56.51%, +4.42% edge** | Full attention over 60-bar window |
+
+---
 
 ## Tech Stack
 
@@ -50,6 +69,8 @@ FinIntel AI analyses any stock ticker through 10 specialised AI agents, aggregat
 | Frontend | React + Vite |
 | External Data | SEC EDGAR Form 4 API, FINRA Reg SHO API |
 
+---
+
 ## Setup
 
 ```bash
@@ -59,18 +80,20 @@ pip install transformers praw feedparser joblib requests
 ```
 
 ```bash
-# Terminal 1
+# Terminal 1 — Redis
 redis-server
 
-# Terminal 2
+# Terminal 2 — Celery worker
 celery -A celery_app.celery worker --loglevel=info --concurrency=2 --pool=threads
 
-# Terminal 3
+# Terminal 3 — Flask
 python app.py
 
-# Terminal 4
+# Terminal 4 — Frontend
 cd frontend && npm install && npm run dev
 ```
+
+---
 
 ## Train the Model
 
@@ -78,21 +101,21 @@ cd frontend && npm install && npm run dev
 python training/train_transformer.py --target direction
 ```
 
+---
+
 ## Run Backtest
 
 ```bash
 python -m backtesting.run_backtest --ticker AAPL --mode walkforward --folds 5
 ```
 
-## API
+---
 
 ## API
-POST /analyze/<ticker> → returns task_id instantly
-GET /task/<task_id> → returns progress or final result
 
-**Start Analysis**
+**Start analysis — returns immediately:**
+POST /analyze/<ticker>
 ```json
-POST /analyze/AAPL
 {
   "task_id": "abc-123",
   "ticker": "AAPL",
@@ -100,9 +123,9 @@ POST /analyze/AAPL
 }
 ```
 
-**Poll for Result**
+**Poll for result:**
+GET /task/<task_id>
 ```json
-GET /task/abc-123
 {
   "status": "SUCCESS",
   "result": {
@@ -127,9 +150,13 @@ GET /task/abc-123
 }
 ```
 
+---
+
 ## Market Coverage
 
 India · US · Crypto · Indices · Commodities — 22 global tickers
+
+---
 
 ## Roadmap
 
@@ -145,10 +172,8 @@ India · US · Crypto · Indices · Commodities — 22 global tickers
 - [ ] Phase 4 — News Intelligence (RAG-based)
 - [ ] Phase 5 — AI Chat Mode
 
+---
+
 ## Disclaimer
 
 For educational and research purposes only. Not financial advice.
-
-## Author
-
-ECE student at NIT Silchar (CGPA: 8.57). Built as a portfolio project demonstrating applied ML in financial markets.
